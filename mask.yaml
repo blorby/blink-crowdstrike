@@ -1,0 +1,9 @@
+actions:
+  # example action
+  getExample:
+    alias: GetExample
+    parameters:
+      id:
+        alias: ID
+
+# generate mask file with the openapi cli.
