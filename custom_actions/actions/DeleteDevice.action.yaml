@@ -1,0 +1,9 @@
+name: "HideDevice"
+description: ""
+enabled: true
+parameters:
+  "Host Agent ID":
+    type: "string"
+    description: "The host agent ID (AID) of the host you want to contain. Get an agent ID from a detection, the Falcon console, or the Streaming API."
+    required: true
+    index: 1

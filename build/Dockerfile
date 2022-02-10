@@ -1,33 +1,30 @@
-FROM golang:1.16.3 AS builder
+FROM golang:1.16.3-alpine3.13 AS builder
 
-WORKDIR /go/src/github.com/blinkops/blink-EXAMPLE
+WORKDIR /go/src/github.com/blinkops/blink-crowdstrike
 COPY .. .
 
-# install certificates
 RUN apk --no-cache add ca-certificates
 
-# gzip all the yaml files.
-RUN find . -type f -name '*.yaml' -exec sh -c 'echo "${1%}";gzip "${1%}"' sh {} \;
+# compress the yaml files.
+RUN find . -maxdepth 1 -type f -name '*.yaml' -exec sh -c 'echo "${1%}";gzip "${1%}"' sh {} \;
+RUN go mod tidy
+# build the plugin.
+RUN go build -tags netgo -ldflags '-w -s -extldflags "-static"' -o /go/bin/blink-crowdstrike ./cmd/main
 
-# build the plugin
-RUN go build -tags netgo -ldflags '-w -extldflags "-static"' -o /go/bin/blink-EXAMPLE ./cmd/main
-
-##################
 FROM scratch AS plugin
+WORKDIR /blink-crowdstrike
 
-WORKDIR /blink-EXAMPLE
-
-# copy the certificates
+# certificates need to run in scratch
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
-# copy the files that are needed in order run.
-COPY --from=builder /go/bin/blink-EXAMPLE .
-COPY --from=builder /go/src/github.com/blinkops/blink-EXAMPLE/EXAMPLE-openapi.yaml.gz .
-COPY --from=builder /go/src/github.com/blinkops/blink-EXAMPLE/mask.yaml.gz .
+COPY --from=builder /go/bin/blink-crowdstrike .
+COPY --from=builder /go/src/github.com/blinkops/blink-crowdstrike/custom_actions ./custom_actions
+COPY --from=builder /go/src/github.com/blinkops/blink-crowdstrike/crowdstrike-openapi.yaml.gz .
+COPY --from=builder /go/src/github.com/blinkops/blink-crowdstrike/mask.yaml.gz .
 
 # Expose the gRPC port
 EXPOSE 1337
 
 ENV PROD true
 
-ENTRYPOINT ./blink-EXAMPLE
+ENTRYPOINT ["./blink-crowdstrike"]
