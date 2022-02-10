@@ -4845,6 +4845,19 @@ paths:
             Sort either `asc` (ascending) or `desc` (descending). For example: `last_behavior|asc`
           schema:
             type: string
+            enum:
+              - first_behavior|asc
+              - first_behavior|desc
+              - last_behavior|asc
+              - last_behavior|desc
+              - max_severity|asc
+              - max_severity|desc
+              - max_confidence|asc
+              - max_confidence|desc
+              - adversary_id|asc
+              - adversary_id|desc
+              - devices.hostname|asc
+              - devices.hostname|desc
         - name: filter
           in: query
           description: "Filter detections using a query in Falcon Query Language (FQL)\
@@ -12928,6 +12941,12 @@ paths:
           required: true
           schema:
             type: string
+            enum:
+              - sha256
+              - md5
+              - domain
+              - ipv4
+              - ipv6
         - name: value
           in: query
           description: The string representation of the indicator
