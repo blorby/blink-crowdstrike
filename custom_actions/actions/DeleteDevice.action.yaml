@@ -1,5 +1,6 @@
-name: "HideDevice"
-description: ""
+name: "DeleteDevice"
+display_name: "Delete Device"
+description: "This action will delete a host. After the host is deleted, no new detections for that host will be reported via UI or APIs."
 enabled: true
 parameters:
   "Host Agent ID":
