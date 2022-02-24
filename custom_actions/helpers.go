@@ -80,7 +80,7 @@ func execRequest(ctx *plugin.ActionContext, request *http.Request, timeout int32
 }
 
 func isDeviceInstalled(ctx *plugin.ActionContext, requestUrl string, timeout int32, serial string) (bool, error) {
-	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/devices/queries/devices/v1?filter=serial_number:'%s'", requestUrl, serial), nil)
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/devices/queries/devices/v1?filter=serial_number:'%s'", requestUrl, url.QueryEscape(serial)), nil)
 	if err != nil {
 		return false, err
 	}
