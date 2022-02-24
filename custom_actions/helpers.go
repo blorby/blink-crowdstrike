@@ -3,6 +3,7 @@ package actions
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/blinkops/blink-openapi-sdk/consts"
 	openapi_sdk "github.com/blinkops/blink-openapi-sdk/plugin"
 	"github.com/blinkops/blink-sdk/plugin"
@@ -76,4 +77,28 @@ func execRequest(ctx *plugin.ActionContext, request *http.Request, timeout int32
 	res.ErrorCode = consts.Error
 
 	return res, nil
+}
+
+func isDeviceInstalled(ctx *plugin.ActionContext, requestUrl string, timeout int32, serial string) (bool, error) {
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/devices/queries/devices/v1?filter=serial_number:'%s'", requestUrl, serial), nil)
+	if err != nil {
+		return false, err
+	}
+
+	resp, err := openapi_sdk.ExecuteRequest(ctx, req, PluginName, nil, nil, timeout, GetCrowdStrikeAccessToken)
+	if err != nil {
+		return false, err
+	}
+
+	var respJson QueryDevicesByFilterResponse
+	err = json.Unmarshal(resp.Body, &respJson)
+	if err != nil {
+		return false, errors.New("failed to unmarshal response json")
+	}
+
+	if respJson.Meta.Pagination.Total > 0 {
+		return true, nil
+	}
+
+	return false, nil
 }
