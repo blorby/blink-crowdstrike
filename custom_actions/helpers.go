@@ -177,22 +177,24 @@ func performGetInstalledDevices(ctx *plugin.ActionContext, request *plugin.Execu
 				return
 			}
 
-			// if device is installed
-			if deviceId != "" {
-				if onlyActiveDevices {
-					// add serial to list only if device is active
-					deviceActive, err := isDeviceActive(ctx, requestUrl, request.Timeout, deviceId)
-					if err != nil {
-						errorToReturn = err
-						return
-					}
+			// if device is not installed
+			if deviceId == "" {
+				return
+			}
 
-					if deviceActive {
-						activeSerialsChan <- serialVal
-					}
-				} else {
+			if onlyActiveDevices {
+				// add serial to list only if device is active
+				var deviceActive bool
+				if deviceActive, err = isDeviceActive(ctx, requestUrl, request.Timeout, deviceId); err != nil {
+					errorToReturn = err
+					return
+				}
+
+				if deviceActive {
 					activeSerialsChan <- serialVal
 				}
+			} else {
+				activeSerialsChan <- serialVal
 			}
 		}()
 	}
