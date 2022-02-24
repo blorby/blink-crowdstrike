@@ -9,14 +9,13 @@ import (
 	customact "github.com/blinkops/blink-openapi-sdk/plugin/custom_actions"
 	"github.com/blinkops/blink-sdk/plugin"
 	"net/http"
-	"strings"
-	"sync"
 )
 
 const (
-	PluginName         = "crowdstrike"
-	hostAgentIdParam   = "Host Agent ID"
-	deviceSerialsParam = "Device Serials"
+	PluginName             = "crowdstrike"
+	hostAgentIdParam       = "Host Agent ID"
+	deviceSerialsParam     = "Device Serials"
+	onlyActiveDevicesParam = "Return only active devices"
 )
 
 type QueryDevicesByFilterResponse struct {
@@ -25,14 +24,14 @@ type QueryDevicesByFilterResponse struct {
 
 type GetDeviceResponse struct {
 	Resources []struct {
-		Status string `json:"detection_suppression_status,omitempty"`	
+		Status string `json:"detection_suppression_status,omitempty"`
 	} `json:"resources"`
 }
 
 func GetCrowdStrikeCustomActions() customact.CustomActions {
 	actions := map[string]customact.ActionHandler{
-		"GetActiveDevices": getActiveDevices,
-		"DeleteDevice":     deleteDevice,
+		"GetInstalledDevices": getInstalledDevices,
+		"DeleteDevice":        deleteDevice,
 	}
 
 	return customact.CustomActions{
@@ -41,57 +40,10 @@ func GetCrowdStrikeCustomActions() customact.CustomActions {
 	}
 }
 
-func getActiveDevices(ctx *plugin.ActionContext, request *plugin.ExecuteActionRequest) (*plugin.ExecuteActionResponse, error) {
-	requestUrl, err := openapi_sdk.GetRequestUrl(ctx, PluginName)
-	if err != nil {
-		return nil, errors.New("no request url provided")
-	}
+func getInstalledDevices(ctx *plugin.ActionContext, request *plugin.ExecuteActionRequest) (*plugin.ExecuteActionResponse, error) {
+	deviceSerials, onlyActiveDevices, err := getGetInstalledDevicesParams(request)
 
-	params, err := request.GetParameters()
-	if err != nil {
-		return nil, err
-	}
-
-	deviceSerials := params[deviceSerialsParam]
-	if deviceSerials == "" {
-		return nil, errors.New("no device serials provided")
-	}
-
-	deviceSerials = strings.ReplaceAll(deviceSerials, ", ", ",")
-	deviceSerialsList := strings.Split(deviceSerials, ",")
-
-	activeSerialsChan := make(chan string, len(deviceSerialsList))
-	var errorToReturn error
-
-	var wg sync.WaitGroup
-	for _, serial := range deviceSerialsList {
-		serialVal := serial
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			deviceId, err := getDeviceIdBySerial(ctx, requestUrl, request.Timeout, serialVal)
-			if err != nil {
-				errorToReturn = err
-				return
-			}
-
-			if deviceId != "" {
-				deviceActive, err := isDeviceActive(ctx, requestUrl, request.Timeout, deviceId)
-				if err != nil {
-					errorToReturn = err
-					return
-				}
-
-				if deviceActive {
-					activeSerialsChan <- serialVal
-				}
-			}
-		}()
-	}
-	wg.Wait()
-
-	close(activeSerialsChan)
-
+	activeSerialsChan, err := performGetInstalledDevices(ctx, request, deviceSerials, onlyActiveDevices)
 	if err != nil {
 		return nil, err
 	}
