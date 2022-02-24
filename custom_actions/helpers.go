@@ -79,8 +79,32 @@ func execRequest(ctx *plugin.ActionContext, request *http.Request, timeout int32
 	return res, nil
 }
 
-func isDeviceInstalled(ctx *plugin.ActionContext, requestUrl string, timeout int32, serial string) (bool, error) {
+func getDeviceIdBySerial(ctx *plugin.ActionContext, requestUrl string, timeout int32, serial string) (string, error) {
 	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/devices/queries/devices/v1?filter=serial_number:'%s'", requestUrl, url.QueryEscape(serial)), nil)
+	if err != nil {
+		return "", err
+	}
+
+	resp, err := openapi_sdk.ExecuteRequest(ctx, req, PluginName, nil, nil, timeout, GetCrowdStrikeAccessToken)
+	if err != nil {
+		return "", err
+	}
+
+	var respJson QueryDevicesByFilterResponse
+	err = json.Unmarshal(resp.Body, &respJson)
+	if err != nil {
+		return "", errors.New("failed to unmarshal response json")
+	}
+
+	if len(respJson.Resources) > 0 {
+		return respJson.Resources[0], nil
+	}
+
+	return "", nil
+}
+
+func isDeviceActive(ctx *plugin.ActionContext, requestUrl string, timeout int32, deviceId string) (bool, error) {
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/devices/entities/devices/v1?ids=%s", requestUrl, url.QueryEscape(deviceId)), nil)
 	if err != nil {
 		return false, err
 	}
@@ -90,15 +114,16 @@ func isDeviceInstalled(ctx *plugin.ActionContext, requestUrl string, timeout int
 		return false, err
 	}
 
-	var respJson QueryDevicesByFilterResponse
+	var respJson GetDeviceResponse
 	err = json.Unmarshal(resp.Body, &respJson)
 	if err != nil {
 		return false, errors.New("failed to unmarshal response json")
 	}
 
-	if respJson.Meta.Pagination.Total > 0 {
+	if len(respJson.Resources) > 0 && respJson.Resources[0].Status != "suppressed" {
 		return true, nil
 	}
 
 	return false, nil
 }
+

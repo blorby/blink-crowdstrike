@@ -20,17 +20,19 @@ const (
 )
 
 type QueryDevicesByFilterResponse struct {
-	Meta struct {
-		Pagination struct {
-			Total int `json:"total"`
-		} `json:"pagination"`
-	} `json:"meta"`
+	Resources []string `json:"resources"`
+}
+
+type GetDeviceResponse struct {
+	Resources []struct {
+		Status string `json:"detection_suppression_status,omitempty"`	
+	} `json:"resources"`
 }
 
 func GetCrowdStrikeCustomActions() customact.CustomActions {
 	actions := map[string]customact.ActionHandler{
-		"GetInstalledDevices": getInstalledDevices,
-		"DeleteDevice":        deleteDevice,
+		"GetActiveDevices": getActiveDevices,
+		"DeleteDevice":     deleteDevice,
 	}
 
 	return customact.CustomActions{
@@ -39,7 +41,7 @@ func GetCrowdStrikeCustomActions() customact.CustomActions {
 	}
 }
 
-func getInstalledDevices(ctx *plugin.ActionContext, request *plugin.ExecuteActionRequest) (*plugin.ExecuteActionResponse, error) {
+func getActiveDevices(ctx *plugin.ActionContext, request *plugin.ExecuteActionRequest) (*plugin.ExecuteActionResponse, error) {
 	requestUrl, err := openapi_sdk.GetRequestUrl(ctx, PluginName)
 	if err != nil {
 		return nil, errors.New("no request url provided")
@@ -58,7 +60,7 @@ func getInstalledDevices(ctx *plugin.ActionContext, request *plugin.ExecuteActio
 	deviceSerials = strings.ReplaceAll(deviceSerials, ", ", ",")
 	deviceSerialsList := strings.Split(deviceSerials, ",")
 
-	installedSerialsChan := make(chan string, len(deviceSerialsList))
+	activeSerialsChan := make(chan string, len(deviceSerialsList))
 	var errorToReturn error
 
 	var wg sync.WaitGroup
@@ -67,36 +69,44 @@ func getInstalledDevices(ctx *plugin.ActionContext, request *plugin.ExecuteActio
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			deviceInstalled, err := isDeviceInstalled(ctx, requestUrl, request.Timeout, serialVal)
+			deviceId, err := getDeviceIdBySerial(ctx, requestUrl, request.Timeout, serialVal)
 			if err != nil {
 				errorToReturn = err
 				return
 			}
 
-			if deviceInstalled {
-				installedSerialsChan <- serialVal
+			if deviceId != "" {
+				deviceActive, err := isDeviceActive(ctx, requestUrl, request.Timeout, deviceId)
+				if err != nil {
+					errorToReturn = err
+					return
+				}
+
+				if deviceActive {
+					activeSerialsChan <- serialVal
+				}
 			}
 		}()
 	}
 	wg.Wait()
 
-	close(installedSerialsChan)
+	close(activeSerialsChan)
 
 	if err != nil {
 		return nil, err
 	}
 
-	var installedSerials []string
-	for len(installedSerialsChan) > 0 {
-		installedSerials = append(installedSerials, <-installedSerialsChan)
+	var activeSerials []string
+	for len(activeSerialsChan) > 0 {
+		activeSerials = append(activeSerials, <-activeSerialsChan)
 	}
 
-	installedSerialsStr, err := json.Marshal(installedSerials)
+	activeSerialsStr, err := json.Marshal(activeSerials)
 	if err != nil {
-		return nil, errors.New("failed to marshal installed serials json")
+		return nil, errors.New("failed to marshal active serials json")
 	}
 
-	return &plugin.ExecuteActionResponse{ErrorCode: consts.OK, Result: installedSerialsStr}, nil
+	return &plugin.ExecuteActionResponse{ErrorCode: consts.OK, Result: activeSerialsStr}, nil
 }
 
 func deleteDevice(ctx *plugin.ActionContext, request *plugin.ExecuteActionRequest) (*plugin.ExecuteActionResponse, error) {

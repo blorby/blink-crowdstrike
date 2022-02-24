@@ -1,0 +1,10 @@
+name: "GetActiveDevices"
+display_name: "Get Active Devices"
+description: "This action will receive a list of device serials, and return a list of device serials which are installed and active."
+enabled: true
+parameters:
+  "Device Serials":
+    type: "string"
+    description: "Comma separated list of device serials."
+    required: true
+    index: 1
