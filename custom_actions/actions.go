@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"github.com/blinkops/blink-openapi-sdk/consts"
 	openapi_sdk "github.com/blinkops/blink-openapi-sdk/plugin"
 	customact "github.com/blinkops/blink-openapi-sdk/plugin/custom_actions"
 	"github.com/blinkops/blink-sdk/plugin"
@@ -11,19 +12,53 @@ import (
 )
 
 const (
-	PluginName = "crowdstrike"
-	hostAgentIdParam = "Host Agent ID"
+	PluginName             = "crowdstrike"
+	hostAgentIdParam       = "Host Agent ID"
+	deviceSerialsParam     = "Device Serials"
+	onlyActiveDevicesParam = "Return only active devices"
 )
+
+type QueryDevicesByFilterResponse struct {
+	Resources []string `json:"resources"`
+}
+
+type GetDeviceResponse struct {
+	Resources []struct {
+		Status string `json:"detection_suppression_status,omitempty"`
+	} `json:"resources"`
+}
 
 func GetCrowdStrikeCustomActions() customact.CustomActions {
 	actions := map[string]customact.ActionHandler{
-		"DeleteDevice": deleteDevice,
+		"GetInstalledDevices": getInstalledDevices,
+		"DeleteDevice":        deleteDevice,
 	}
 
 	return customact.CustomActions{
 		Actions:           actions,
 		ActionsFolderPath: "custom_actions/actions",
 	}
+}
+
+func getInstalledDevices(ctx *plugin.ActionContext, request *plugin.ExecuteActionRequest) (*plugin.ExecuteActionResponse, error) {
+	deviceSerials, onlyActiveDevices, err := getGetInstalledDevicesParams(request)
+
+	activeSerialsChan, err := performGetInstalledDevices(ctx, request, deviceSerials, onlyActiveDevices)
+	if err != nil {
+		return nil, err
+	}
+
+	var activeSerials []string
+	for len(activeSerialsChan) > 0 {
+		activeSerials = append(activeSerials, <-activeSerialsChan)
+	}
+
+	activeSerialsStr, err := json.Marshal(activeSerials)
+	if err != nil {
+		return nil, errors.New("failed to marshal active serials json")
+	}
+
+	return &plugin.ExecuteActionResponse{ErrorCode: consts.OK, Result: activeSerialsStr}, nil
 }
 
 func deleteDevice(ctx *plugin.ActionContext, request *plugin.ExecuteActionRequest) (*plugin.ExecuteActionResponse, error) {
@@ -41,7 +76,7 @@ func deleteDevice(ctx *plugin.ActionContext, request *plugin.ExecuteActionReques
 
 	reqBody := json.RawMessage(`{
   "ids": [
-    "`+ id +`"
+    "` + id + `"
   ]
 }`)
 	marshalledReqBody, err := json.Marshal(&reqBody)
@@ -55,4 +90,3 @@ func deleteDevice(ctx *plugin.ActionContext, request *plugin.ExecuteActionReques
 
 	return execRequest(ctx, req, request.Timeout)
 }
-
