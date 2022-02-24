@@ -1,38 +1,10 @@
 ## blink-crowdstrike
 > Use this API specification as a reference for the API endpoints you can use to interact with your Falcon environment. These endpoints support authentication via OAuth2 and interact with detections and network containment. For detailed usage guides and more information about API endpoints that don&#39;t yet support OAuth2, see our [documentation inside the Falcon console](https://falcon.us-2.crowdstrike.com/support/documentation).
 
-## ListDevices
-* Search for hosts in your environment by platform, hostname, IP, and other criteria.
-<table>
-<caption>Action Parameters</caption>
-  <thead>
-    <tr>
-        <th>Param Name</th>
-        <th>Param Description</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-       <tr>
-           <td>Filter</td>
-           <td>The filter expression that should be used to limit the results.</td>
-       </tr>
-       <tr>
-           <td>Limit</td>
-           <td>The maximum records to return. [1-5000]</td>
-       </tr>
-       <tr>
-           <td>Offset</td>
-           <td>The offset to start retrieving records from.</td>
-       </tr>
-       <tr>
-           <td>Sort</td>
-           <td>The property to sort by (e.g. status.desc or hostname.asc)</td>
-       </tr>
-    </tr>
-  </tbody>
-</table>
 
+  To use the APIs described below, combine the base URL with the path shown for each API endpoint. For commercial cloud customers, your base URL is `https://api.us-2.crowdstrike.com`.
+
+  Each API endpoint requires authorization via an OAuth2 token. Your first API request should retrieve an OAuth2 token using the `oauth2/token` endpoint, such as `https://api.us-2.crowdstrike.com/oauth2/token`. For subsequent requests, include the OAuth2 token in an HTTP authorization header. Tokens expire after 30 minutes, after which you should make a new token request to continue making API requests.
 
 
 ## SearchAcrossDevices
@@ -172,6 +144,40 @@ Sort either `asc` (ascending) or `desc` (descending). For example: `last_behavio
 
 
 
+## ListDevices
+* Search for hosts in your environment by platform, hostname, IP, and other criteria.
+<table>
+<caption>Action Parameters</caption>
+  <thead>
+    <tr>
+        <th>Param Name</th>
+        <th>Param Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+       <tr>
+           <td>Filter</td>
+           <td>The filter expression that should be used to limit the results.</td>
+       </tr>
+       <tr>
+           <td>Limit</td>
+           <td>The maximum records to return. [1-5000]</td>
+       </tr>
+       <tr>
+           <td>Offset</td>
+           <td>The offset to start retrieving records from.</td>
+       </tr>
+       <tr>
+           <td>Sort</td>
+           <td>The property to sort by (e.g. status.desc or hostname.asc)</td>
+       </tr>
+    </tr>
+  </tbody>
+</table>
+
+
+
 ## DeleteDevice
 * This action will delete a host. After the host is deleted, no new detections for that host will be reported via UI or APIs.
 <table>
@@ -187,6 +193,32 @@ Sort either `asc` (ascending) or `desc` (descending). For example: `last_behavio
        <tr>
            <td>Host Agent ID</td>
            <td>The host agent ID (AID) of the host you want to contain. Get an agent ID from a detection, the Falcon console, or the Streaming API.</td>
+       </tr>
+    </tr>
+  </tbody>
+</table>
+
+
+
+## GetInstalledDevices
+* This action will receive a list of device serials, and return a list of device serials which are installed.
+<table>
+<caption>Action Parameters</caption>
+  <thead>
+    <tr>
+        <th>Param Name</th>
+        <th>Param Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+       <tr>
+           <td>Device Serials</td>
+           <td>Comma separated list of device serials.</td>
+       </tr>
+       <tr>
+           <td>Return Only Active Devices</td>
+           <td>Whether to return only active devices.</td>
        </tr>
     </tr>
   </tbody>
